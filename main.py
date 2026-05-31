@@ -7,35 +7,16 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from pinecone import Pinecone
 
-# Load local environment variables if available
 load_dotenv()
 
 app = FastAPI()
 
-# 1. Active Hyperparameters
 RAG_CONFIG = {
     "chunk_size": 512,       
     "overlap_ratio": 0.25,   
     "top_k": 3               
 }
 
-# 2. API Clients Initialization
-embeddings = OpenAIEmbeddings(
-    model="4UHRUIN-text-embedding-3-small",
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
-    openai_api_base=os.getenv("OPENAI_API_BASE")
-)
-
-llm = ChatOpenAI(
-    model="4UHRUIN-gpt-5-mini",
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
-    openai_api_base=os.getenv("OPENAI_API_BASE")
-)
-
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-index = pc.Index("medium-articles")
-
-# 3. Strict Context Prompt Constraints
 SYSTEM_PROMPT = (
     "You are a Medium-article assistant that answers questions strictly and only "
     "based on the Medium articles dataset context provided to you (metadata and article passages). "
@@ -52,6 +33,22 @@ class QueryPayload(BaseModel):
 # ENDPOINT 1: POST /api/prompt
 @app.post("/api/prompt")
 async def execute_rag(payload: QueryPayload):
+    # Initialize connection structures securely inside the invocation pipeline
+    embeddings = OpenAIEmbeddings(
+        model="4UHRUIN-text-embedding-3-small",
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        openai_api_base=os.getenv("OPENAI_API_BASE")
+    )
+
+    llm = ChatOpenAI(
+        model="4UHRUIN-gpt-5-mini",
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        openai_api_base=os.getenv("OPENAI_API_BASE")
+    )
+
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index = pc.Index("medium-articles")
+
     query_vector = embeddings.embed_query(payload.question)
     raw_matches = index.query(vector=query_vector, top_k=RAG_CONFIG["top_k"], include_metadata=True)
     
@@ -90,7 +87,7 @@ async def execute_rag(payload: QueryPayload):
 async def deliver_stats():
     return RAG_CONFIG
 
-# ENDPOINT 3: GET / (Serves UI Layout Directly without Disk Lookups)
+# ENDPOINT 3: GET / (Delivers Dashboard Markup Interface)
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     return """
