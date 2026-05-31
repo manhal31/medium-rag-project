@@ -7,6 +7,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from pinecone import Pinecone
 
+# Load environmental configurations
 load_dotenv()
 
 app = FastAPI()
@@ -30,10 +31,9 @@ SYSTEM_PROMPT = (
 class QueryPayload(BaseModel):
     question: str
 
-# ENDPOINT 1: POST /api/prompt
+# ENDPOINT 1: Changed to standard synchronous def for serverless stability
 @app.post("/api/prompt")
-async def execute_rag(payload: QueryPayload):
-    # Initialize connection structures securely inside the invocation pipeline
+def execute_rag(payload: QueryPayload):
     embeddings = OpenAIEmbeddings(
         model="4UHRUIN-text-embedding-3-small",
         openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -82,14 +82,14 @@ async def execute_rag(payload: QueryPayload):
         }
     }
 
-# ENDPOINT 2: GET /api/stats
+# ENDPOINT 2: Standard def execution
 @app.get("/api/stats")
-async def deliver_stats():
+def deliver_stats():
     return RAG_CONFIG
 
-# ENDPOINT 3: GET / (Delivers Dashboard Markup Interface)
+# ENDPOINT 3: UI Dashboard Delivery Route
 @app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
+def serve_frontend():
     return """
     <!DOCTYPE html>
     <html lang="en">
