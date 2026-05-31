@@ -4,10 +4,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage
+# UPDATED: Using the modern, stable packaging imports preferred by cloud runtimes
+from langchain_core.messages import SystemMessage, HumanMessage
 from pinecone import Pinecone
 
-# Load environmental configurations
 load_dotenv()
 
 app = FastAPI()
@@ -31,7 +31,6 @@ SYSTEM_PROMPT = (
 class QueryPayload(BaseModel):
     question: str
 
-# ENDPOINT 1: Changed to standard synchronous def for serverless stability
 @app.post("/api/prompt")
 def execute_rag(payload: QueryPayload):
     embeddings = OpenAIEmbeddings(
@@ -82,12 +81,10 @@ def execute_rag(payload: QueryPayload):
         }
     }
 
-# ENDPOINT 2: Standard def execution
 @app.get("/api/stats")
 def deliver_stats():
     return RAG_CONFIG
 
-# ENDPOINT 3: UI Dashboard Delivery Route
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
     return """
@@ -203,11 +200,11 @@ def serve_frontend():
                         const div = document.createElement('div');
                         div.className = 'chunk-pill';
                         div.innerHTML = `
-                            <strong>📄 ${match.title}</strong>
-                            <p style="color:#4b5563; margin-top: 6px; font-style: italic;">"${match.chunk.substring(0, 180)}..."</p>
+                            <strong>📄 ' + match.title + '</strong>
+                            <p style="color:#4b5563; margin-top: 6px; font-style: italic;">"' + match.chunk.substring(0, 180) + '..."</p>
                             <div class="chunk-meta">
-                                <span>Document ID: #${match.article_id}</span>
-                                <span>Confidence Score: ${(match.score * 100).toFixed(1)}%</span>
+                                <span>Document ID: #' + match.article_id + '</span>
+                                <span>Confidence Score: ' + (match.score * 100).toFixed(1) + '%</span>
                             </div>
                         `;
                         matchesContainer.appendChild(div);
@@ -226,8 +223,8 @@ def serve_frontend():
         function postBubble(text, side, char) {
             const feed = document.getElementById('chatFeed');
             const row = document.createElement('div');
-            row.className = `msg-row \${side}`;
-            row.innerHTML = `<div class="avatar">\${char}</div><div class="bubble">\${text}</div>`;
+            row.className = "msg-row " + side;
+            row.innerHTML = '<div class="avatar">' + char + '</div><div class="bubble">' + text + '</div>';
             feed.appendChild(row);
             feed.scrollTop = feed.scrollHeight;
         }
@@ -235,7 +232,7 @@ def serve_frontend():
             const feed = document.getElementById('chatFeed');
             const row = document.createElement('div');
             row.className = 'msg-row bot';
-            row.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="dots"><span></span><span></span><span></span></div></div>`;
+            row.innerHTML = '<div class="avatar">🤖</div><div class="bubble"><div class="dots"><span></span><span></span><span></span></div></div>';
             feed.appendChild(row);
             feed.scrollTop = feed.scrollHeight;
             return row;
