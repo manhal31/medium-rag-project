@@ -13,8 +13,8 @@ load_dotenv()
 app = FastAPI()
 
 RAG_CONFIG = {
-    "chunk_size": 512,       
-    "overlap_ratio": 0.25,   
+    "chunk_size": 256,       
+    "overlap_ratio": 0.2,   
     "top_k": 3               
 }
 
