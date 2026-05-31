@@ -13,9 +13,9 @@ load_dotenv()
 app = FastAPI()
 
 RAG_CONFIG = {
-    "chunk_size": 256,       
-    "overlap_ratio": 0.2,   
-    "top_k": 3               
+    "chunk_size": 513,       
+    "overlap_ratio": 0.15,   
+    "top_k": 8               
 }
 
 SYSTEM_PROMPT = (
