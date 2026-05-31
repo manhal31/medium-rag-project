@@ -37,7 +37,15 @@ SYSTEM_PROMPT = (
     "evidence regarding how recent pandemics like the Coronavirus spur systemic innovation and recovery...').\n"
     "3. CONCISE STRUCTURE: Deliver the extracted arguments or summaries cleanly using bullet points. Do not write endless conversational "
     "paragraphs explaining your search process."
+    "4. MAX LENGTH: Keep your entire response under 250 words total. Cut out all conversational filler.\n"
+    "5. CONCEPTUAL BRIDGING: If a specific historical keyword is missing but the context heavily answers the macro concept, explicitly note the missing term in one brief sentence, then deliver the data using bullet points.\n"
+    "6. NO META-YAPPING: Do not explain your search process, do not list what you searched for, and never use phrases like 'Based on the provided excerpts, I found...'. Jump straight to the answer.\n"
+
+
+
 )
+
+
 
 class QueryPayload(BaseModel):
     question: str
