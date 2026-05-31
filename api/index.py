@@ -4,7 +4,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-# UPDATED: Using the modern, stable packaging imports preferred by cloud runtimes
 from langchain_core.messages import SystemMessage, HumanMessage
 from pinecone import Pinecone
 
@@ -19,7 +18,6 @@ RAG_CONFIG = {
 }
 
 SYSTEM_PROMPT = (
-    
     "You are a Medium-article assistant that answers questions strictly and only "
     "based on the Medium articles dataset context provided to you (metadata and article passages). "
     "You must not use any external knowledge, the open internet, or information that is "
@@ -36,16 +34,11 @@ SYSTEM_PROMPT = (
     "rich data you DO have. (Example: 'While the provided articles do not explicitly mention the bubonic plague, the dataset contains clear "
     "evidence regarding how recent pandemics like the Coronavirus spur systemic innovation and recovery...').\n"
     "3. CONCISE STRUCTURE: Deliver the extracted arguments or summaries cleanly using bullet points. Do not write endless conversational "
-    "paragraphs explaining your search process."
-    "4. MAX LENGTH: Keep your entire response under 250 words total. Cut out all conversational filler.\n"
+    "paragraphs explaining your search process.\n"
+    "4. MAX LENGTH: Keep your entire response under 200 words total. Cut out all conversational filler.\n"
     "5. CONCEPTUAL BRIDGING: If a specific historical keyword is missing but the context heavily answers the macro concept, explicitly note the missing term in one brief sentence, then deliver the data using bullet points.\n"
     "6. NO META-YAPPING: Do not explain your search process, do not list what you searched for, and never use phrases like 'Based on the provided excerpts, I found...'. Jump straight to the answer.\n"
-
-
-
 )
-
-
 
 class QueryPayload(BaseModel):
     question: str
@@ -115,10 +108,9 @@ def serve_frontend():
         <title>Medium Article Research Assistant</title>
         <style>
             * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-            body { background: #f8f9fa; height: 100vh; display: flex; overflow: hidden; color: #1a1a1a; }
-            .main-layout { display: flex; width: 100%; height: 100vh; }
-            .chat-pane { flex: 1.2; display: flex; flex-direction: column; background: #ffffff; border-right: 1px solid #e5e7eb; height: 100%; }
-            .inspector-pane { flex: 0.8; background: #f9fafb; display: flex; flex-direction: column; height: 100%; }
+            body { background: #f8f9fa; height: 100vh; display: flex; overflow: hidden; color: #1a1a1a; justify-content: center; }
+            .main-layout { display: flex; width: 100%; max-width: 900px; height: 100vh; background: #ffffff; }
+            .chat-pane { flex: 1; display: flex; flex-direction: column; background: #ffffff; height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.03); }
             .pane-header { padding: 20px 30px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; background: #ffffff; }
             .pane-header h2 { font-size: 1.15rem; font-weight: 700; color: #111827; letter-spacing: -0.3px; }
             .status-badge { background: #e6f7f0; color: #02946c; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; }
@@ -139,12 +131,6 @@ def serve_frontend():
             button { background: #111827; color: white; border: none; padding: 14px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; font-size: 0.95rem; }
             button:hover { background: #03a87c; }
             button:disabled { background: #d1d5db; cursor: not-allowed; }
-            .inspector-body { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
-            .inspect-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.01); }
-            .inspect-card h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 12px; }
-            pre { background: #1f2937; color: #f3f4f6; padding: 14px; border-radius: 8px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.82rem; overflow-x: auto; white-space: pre-wrap; max-height: 250px; }
-            .chunk-pill { border-left: 3px solid #03a87c; background: #f9fafb; padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; font-size: 0.88rem; line-height: 1.5; }
-            .chunk-meta { font-size: 0.75rem; color: #6b7280; margin-top: 6px; font-weight: 600; display: flex; gap: 12px; }
             .dots { display: flex; gap: 4px; padding: 6px 0; }
             .dots span { width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; animation: bounce 1.4s infinite both; }
             .dots span:nth-child(2) { animation-delay: 0.2s; }
@@ -156,7 +142,7 @@ def serve_frontend():
     <div class="main-layout">
         <div class="chat-pane">
             <div class="pane-header">
-                <h2>💬 Smart Article Assistant</h2>
+                <h2>💬 Smart Medium Assistant</h2>
                 <div class="status-badge">System Online</div>
             </div>
             <div class="chat-messages" id="chatFeed">
@@ -170,30 +156,11 @@ def serve_frontend():
                 <button id="execBtn" onclick="runPipeline()">Ask Assistant</button>
             </div>
         </div>
-        <div class="inspector-pane">
-            <div class="pane-header">
-                <h2>📋 Source Material & Reference Verification</h2>
-            </div>
-            <div class="inspector-body">
-                <div class="inspect-card">
-                    <h3>Articles Used for This Answer</h3>
-                    <div id="vectorMatches">
-                        <p style="color: #9ca3af; font-size: 0.9rem; font-style: italic;">When you ask a question, the specific articles used to build the answer will appear here dynamically to verify accuracy.</p>
-                    </div>
-                </div>
-                <div class="inspect-card">
-                    <h3>Strict Instructions Enforced</h3>
-                    <pre id="sysPromptPre">The assistant is currently idling. Ask a question to see the strict rules enforced behind the scenes to avoid AI hallucinations.</pre>
-                </div>
-            </div>
-        </div>
     </div>
     <script>
         async function runPipeline() {
             const input = document.getElementById('promptInput');
             const btn = document.getElementById('execBtn');
-            const matchesContainer = document.getElementById('vectorMatches');
-            const promptPre = document.getElementById('sysPromptPre');
             const text = input.value.trim();
             if (!text) return;
 
@@ -213,21 +180,6 @@ def serve_frontend():
                 loader.remove();
                 if (data.response) {
                     postBubble(data.response, 'bot', '🤖');
-                    promptPre.textContent = "🛡️ Safety Guidelines:\\n" + data.Augmented_prompt.System + "\\n\\n📖 Context Provided to AI:\\n" + data.Augmented_prompt.User;
-                    matchesContainer.innerHTML = '';
-                    data.context.forEach(match => {
-                        const div = document.createElement('div');
-                        div.className = 'chunk-pill';
-                        div.innerHTML = `
-                            <strong>📄 ' + match.title + '</strong>
-                            <p style="color:#4b5563; margin-top: 6px; font-style: italic;">"' + match.chunk.substring(0, 180) + '..."</p>
-                            <div class="chunk-meta">
-                                <span>Document ID: #' + match.article_id + '</span>
-                                <span>Confidence Score: ' + (match.score * 100).toFixed(1) + '%</span>
-                            </div>
-                        `;
-                        matchesContainer.appendChild(div);
-                    });
                 } else {
                     postBubble("Sorry, something went wrong with the data connection. Please try again.", 'bot', '🤖');
                 }
