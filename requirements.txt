@@ -4,5 +4,5 @@ pydantic
 python-dotenv
 langchain
 langchain-openai
-pinecone-client
+pinecone
 jinja2
