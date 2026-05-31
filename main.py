@@ -1,22 +1,26 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain.schema import SystemMessage, HumanMessage
 from pinecone import Pinecone
 
-# Load environment keys from your saved .env file
 load_dotenv()
 
 app = FastAPI()
 
-# 1. RAG Hyperparameter Config Mapping (For the /api/stats endpoint)
-# These settings match your ingest.py chunking strategy precisely.
+# Locate templates directory dynamically for secure Vercel resolution
+current_dir = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(current_dir, "templates"))
+
+# 1. RAG Hyperparameter Config Mapping
 RAG_CONFIG = {
-    "chunk_size": 512,       # Approximate word chunk sizing
-    "overlap_ratio": 0.19,   # 100 overlap words / 512 total words
-    "top_k": 5               # Number of contextual matches to retrieve (Max 30)
+    "chunk_size": 512,       
+    "overlap_ratio": 0.25,   
+    "top_k": 3               
 }
 
 # 2. Initialize APIs with the official Technion course proxy models
@@ -35,7 +39,7 @@ llm = ChatOpenAI(
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("medium-articles")
 
-# 3. Mandatory Context Constraints System Prompt (From Assignment PDF)
+# 3. Your Requested System Prompt Formulation Constraints
 SYSTEM_PROMPT = (
     "You are a Medium-article assistant that answers questions strictly and only "
     "based on the Medium articles dataset context provided to you (metadata and article passages). "
@@ -52,15 +56,8 @@ class QueryPayload(BaseModel):
 # ENDPOINT 1: POST /api/prompt (Processes questions using RAG context)
 @app.post("/api/prompt")
 async def execute_rag(payload: QueryPayload):
-    # Vectorize user query to find semantic matches
     query_vector = embeddings.embed_query(payload.question)
-    
-    # Search Pinecone for the top most relevant passages
-    raw_matches = index.query(
-        vector=query_vector, 
-        top_k=RAG_CONFIG["top_k"], 
-        include_metadata=True
-    )
+    raw_matches = index.query(vector=query_vector, top_k=RAG_CONFIG["top_k"], include_metadata=True)
     
     formatted_context_list = []
     context_text_blocks = []
@@ -75,17 +72,14 @@ async def execute_rag(payload: QueryPayload):
         })
         context_text_blocks.append(f"Title: {meta.get('title')}\nPassage: {meta.get('chunk')}")
         
-    # Stitch context blocks together to insert into the LLM user prompt
     injected_context = "\n\n---\n\n".join(context_text_blocks)
     user_prompt_content = f"Context:\n{injected_context}\n\nQuestion: {payload.question}"
     
-    # Execute the query chain with the Technion model
     llm_output = llm.invoke([
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_prompt_content)
     ])
     
-    # Return Strict JSON payload matching assignment requirements exactly
     return {
         "response": llm_output.content,
         "context": formatted_context_list,
@@ -99,3 +93,8 @@ async def execute_rag(payload: QueryPayload):
 @app.get("/api/stats")
 async def deliver_stats():
     return RAG_CONFIG
+
+# ENDPOINT 3: GET / (Serves the clean HTML file cleanly using Jinja2)
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
